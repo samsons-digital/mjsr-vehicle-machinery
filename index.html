@@ -103,6 +103,7 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
   <button class="nav-btn" onclick="showView('log',this)">📜 Log</button>
   <button class="nav-btn" onclick="showView('reports',this)">📈 Reports</button>
   <button class="nav-btn" onclick="showView('admin',this)">⚙️ Admin</button>
+  <button class="nav-btn" onclick="showView('config',this)">🔧 KM Config</button>
 </nav>
 
 <!-- SUBMIT -->
@@ -209,7 +210,7 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
       <tbody id="machineryTableBody"><tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
     </table></div>
   </div>
-  <div style="text-align:right;margin-top:12px;"><button class="btn btn-secondary btn-sm" onclick="loadDashboard()">&#128260; Refresh</button></div>
+  <div style="text-align:right;margin-top:12px;"><button class="btn btn-secondary btn-sm" id="dashRefreshBtn" onclick="refreshDashboard()">&#128260; Refresh</button></div>
 </div>
 
 <!-- LOG -->
@@ -221,6 +222,7 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
     <select id="logSafeFilter"><option value="">All</option><option value="safe">Safe Only</option><option value="unsafe">Unsafe Only</option></select>
     <button class="btn btn-primary btn-sm" onclick="loadLog()">Search</button>
     <button class="btn btn-secondary btn-sm" onclick="clearLogFilters()">Clear</button>
+    <button class="btn btn-secondary btn-sm" id="logRefreshBtn" onclick="refreshLog()">&#128260; Refresh</button>
   </div>
   <div class="card">
     <div class="table-wrap"><table>
@@ -240,7 +242,7 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
     <div class="card"><div class="card-header"><h3>&#128295; Service Status</h3></div><div class="card-body" id="reportService"><div class="empty-state"><p>Loading...</p></div></div></div>
     <div class="card"><div class="card-header"><h3>&#128100; Top Operators</h3></div><div class="card-body" id="reportOperators"><div class="empty-state"><p>Loading...</p></div></div></div>
   </div>
-  <div style="text-align:right;"><button class="btn btn-secondary btn-sm" onclick="loadReports()">&#128260; Refresh</button></div>
+  <div style="text-align:right;"><button class="btn btn-secondary btn-sm" id="reportsRefreshBtn" onclick="refreshReports()">&#128260; Refresh</button></div>
 </div>
 
 <!-- ADMIN -->
@@ -276,11 +278,108 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><h3>&#128203; Service History</h3></div>
+      <div class="card-header"><h3>&#128203; Service History</h3><button class="btn btn-secondary btn-sm" id="adminHistRefreshBtn" onclick="refreshServiceHistory()">&#128260; Refresh</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Date</th><th>Asset</th><th>Reading at Service</th><th>Notes</th><th>Updated By</th></tr></thead>
         <tbody id="serviceHistoryBody"><tr><td colspan="5"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
       </table></div>
+    </div>
+  </div>
+</div>
+
+<!-- KM CONFIG -->
+<div class="view" id="view-config">
+  <div class="page-header">
+    <h2>KM &amp; Hours Config</h2>
+    <p>Live latest readings for all assets. Edit any reading directly if a submission error is found.</p>
+  </div>
+
+  <!-- VEHICLES TABLE -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h3>&#128664; Vehicles — Current KM Readings</h3>
+      <button class="btn btn-secondary btn-sm" id="configRefreshBtn" onclick="refreshConfig()">&#128260; Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Last Service @</th>
+            <th>Next Service Due</th>
+            <th>Current KM (Latest)</th>
+            <th>Remaining</th>
+            <th>Status</th>
+            <th>Edit Reading</th>
+          </tr>
+        </thead>
+        <tbody id="configVehicleBody">
+          <tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- MACHINERY TABLE -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h3>&#127959; Machinery — Current Hours Readings</h3>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>Last Service @</th>
+            <th>Next Service Due</th>
+            <th>Current Hours (Latest)</th>
+            <th>Remaining</th>
+            <th>Status</th>
+            <th>Edit Reading</th>
+          </tr>
+        </thead>
+        <tbody id="configMachineryBody">
+          <tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL OVERLAY -->
+  <div id="configEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,33,55,0.75);z-index:300;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div style="background:var(--white);border-radius:14px;padding:32px;width:380px;box-shadow:var(--shadow-lg);">
+      <h3 style="font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--navy);margin-bottom:6px;">Edit Latest Reading</h3>
+      <p id="configEditAssetName" style="font-size:13px;color:var(--text-muted);margin-bottom:20px;"></p>
+
+      <div class="alert" id="configEditAlert"></div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label id="configEditReadingLabel">New KM Reading *</label>
+        <input type="number" id="configEditReading" placeholder="e.g. 133500" min="0" style="border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-family:var(--font-body);font-size:14px;width:100%;outline:none;">
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Reason for Edit *</label>
+        <input type="text" id="configEditReason" placeholder="e.g. Incorrect reading submitted on 10 Apr" style="border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-family:var(--font-body);font-size:14px;width:100%;outline:none;">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-accent" onclick="saveConfigEdit()" id="configSaveBtn">&#10003; Save</button>
+        <button class="btn btn-secondary" onclick="closeConfigEdit()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT LOG -->
+  <div class="card">
+    <div class="card-header"><h3>&#128221; Reading Edit Log</h3></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date &amp; Time</th><th>Asset</th><th>Old Reading</th><th>New Reading</th><th>Reason</th><th>Updated By</th></tr>
+        </thead>
+        <tbody id="configEditLogBody">
+          <tr><td colspan="6"><div class="empty-state"><p>No edits recorded yet.</p></div></td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -321,6 +420,7 @@ function showView(name, btn) {
   if (btn) btn.classList.add('active');
   if (name === 'dashboard') loadDashboard();
   if (name === 'reports')   loadReports();
+  if (name === 'config')    loadConfig();
 }
 
 function setAssetType(type) {
@@ -561,6 +661,191 @@ async function loadServiceHistory() {
 setAssetType('vehicle');
 // Auto-load dashboard seed data on page open
 renderDashboardData({...SEED_DATA, total:10, ok:8, soon:0, due:2, checksToday:0, unsafeToday:0});
+
+// ── REFRESH WRAPPERS — each shows loading state, calls loader, restores button ─
+async function refreshDashboard() {
+  const btn = document.getElementById('dashRefreshBtn');
+  btn.disabled = true; btn.textContent = '⏳ Refreshing...';
+  try { await loadDashboard(); } finally {
+    btn.disabled = false; btn.innerHTML = '&#128260; Refresh';
+  }
+}
+
+async function refreshLog() {
+  const btn = document.getElementById('logRefreshBtn');
+  btn.disabled = true; btn.textContent = '⏳ Refreshing...';
+  try { await loadLog(); } finally {
+    btn.disabled = false; btn.innerHTML = '&#128260; Refresh';
+  }
+}
+
+async function refreshReports() {
+  const btn = document.getElementById('reportsRefreshBtn');
+  btn.disabled = true; btn.textContent = '⏳ Refreshing...';
+  try { await loadReports(); } finally {
+    btn.disabled = false; btn.innerHTML = '&#128260; Refresh';
+  }
+}
+
+async function refreshServiceHistory() {
+  const btn = document.getElementById('adminHistRefreshBtn');
+  btn.disabled = true; btn.textContent = '⏳ Refreshing...';
+  try { await loadServiceHistory(); } finally {
+    btn.disabled = false; btn.innerHTML = '&#128260; Refresh';
+  }
+}
+
+async function refreshConfig() {
+  const btn = document.getElementById('configRefreshBtn');
+  btn.disabled = true; btn.textContent = '⏳ Refreshing...';
+  try { await loadConfig(); } finally {
+    btn.disabled = false; btn.innerHTML = '&#128260; Refresh';
+  }
+}
+
+// ── KM CONFIG ────────────────────────────────────────────────────────────────
+let configData = [];
+let configEditAsset = '';
+let configEditOldReading = 0;
+let configEditMetric = 'KM';
+
+async function loadConfig() {
+  document.getElementById('configVehicleBody').innerHTML   = '<tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>';
+  document.getElementById('configMachineryBody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>';
+  try {
+    const res = await gasPost({ action: 'getConfig' });
+    if (res.status !== 'ok') throw new Error(res.message);
+    configData = res.data;
+    renderConfigTable('configVehicleBody',   configData.filter(a => a.category === 'Vehicle'));
+    renderConfigTable('configMachineryBody', configData.filter(a => a.category === 'Machine'));
+    loadConfigEditLog();
+  } catch(err) {
+    document.getElementById('configVehicleBody').innerHTML =
+      `<tr><td colspan="7"><div class="empty-state"><p>Error: ${err.message}</p></div></td></tr>`;
+  }
+}
+
+function renderConfigTable(tbodyId, assets) {
+  const tbody = document.getElementById(tbodyId);
+  if (!assets || !assets.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No data.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = assets.map(a => {
+    const remaining = Number(a.remaining) || 0;
+    const interval  = Number(a.interval)  || 5000;
+    const pct  = Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100));
+    const sc   = a.status.includes('OK') ? 'ok' : a.status.includes('SOON') ? 'soon' : 'due';
+    return `<tr>
+      <td><strong>${a.name}</strong></td>
+      <td>${fmt(a.lastService)}</td>
+      <td>${fmt(a.nextDue)}</td>
+      <td>
+        <span style="font-weight:700;font-size:15px;">${fmt(a.latestReading)}</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:4px">${a.metric}</span>
+      </td>
+      <td><strong>${fmt(remaining)}</strong> <span style="font-size:11px;color:var(--text-muted)">${a.metric}</span></td>
+      <td><span class="badge badge-${sc}">${a.status}</span>
+        <div class="progress-bar" style="margin-top:6px;width:80px"><div class="progress-fill ${sc}" style="width:${pct.toFixed(0)}%"></div></div>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="openConfigEdit('${a.name}',${a.latestReading},'${a.metric}','${a.category}')">
+          &#9998; Edit
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openConfigEdit(assetName, currentReading, metric, category) {
+  configEditAsset      = assetName;
+  configEditOldReading = currentReading;
+  configEditMetric     = metric;
+
+  document.getElementById('configEditAssetName').textContent =
+    assetName + ' — Current ' + metric + ': ' + Number(currentReading).toLocaleString();
+  document.getElementById('configEditReadingLabel').textContent =
+    'New ' + metric + ' Reading *';
+  document.getElementById('configEditReading').value  = '';
+  document.getElementById('configEditReason').value   = '';
+  document.getElementById('configEditAlert').className = 'alert';
+
+  const overlay = document.getElementById('configEditOverlay');
+  overlay.style.display = 'flex';
+}
+
+function closeConfigEdit() {
+  document.getElementById('configEditOverlay').style.display = 'none';
+}
+
+async function saveConfigEdit() {
+  const newReading = document.getElementById('configEditReading').value;
+  const reason     = document.getElementById('configEditReason').value.trim();
+  const alertEl    = document.getElementById('configEditAlert');
+  const saveBtn    = document.getElementById('configSaveBtn');
+
+  if (!newReading || isNaN(Number(newReading))) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Please enter a valid number.';
+    return;
+  }
+  if (!reason) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Please enter a reason for the edit.';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+
+  try {
+    const res = await gasPost({
+      action:      'editLatestReading',
+      asset:       configEditAsset,
+      oldReading:  configEditOldReading,
+      newReading:  Number(newReading),
+      metric:      configEditMetric,
+      reason:      reason,
+    });
+    if (res.status === 'ok') {
+      closeConfigEdit();
+      loadConfig();
+    } else throw new Error(res.message);
+  } catch(err) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Error: ' + err.message;
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '✓ Save';
+  }
+}
+
+async function loadConfigEditLog() {
+  const tbody = document.getElementById('configEditLogBody');
+  try {
+    const res = await gasPost({ action: 'getConfigEditLog' });
+    if (res.status !== 'ok' || !res.data?.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No edits recorded yet.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = res.data.map(r => `<tr>
+      <td>${fmtDate(r.date)} ${r.time || ''}</td>
+      <td><strong>${r.asset}</strong></td>
+      <td style="color:var(--text-muted)">${fmt(r.oldReading)} ${r.metric}</td>
+      <td style="color:var(--ok);font-weight:600">${fmt(r.newReading)} ${r.metric}</td>
+      <td>${r.reason || '—'}</td>
+      <td>${r.updatedBy || '—'}</td>
+    </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>Could not load edit log.</p></div></td></tr>';
+  }
+}
+
+// Close overlay on background click
+document.getElementById('configEditOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeConfigEdit();
+});
+
 </script>
 </body>
 </html>
