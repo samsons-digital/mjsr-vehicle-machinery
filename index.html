@@ -311,10 +311,11 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
             <th>Remaining</th>
             <th>Status</th>
             <th>Edit Reading</th>
+            <th>Edit Next Service</th>
           </tr>
         </thead>
         <tbody id="configVehicleBody">
-          <tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>
+          <tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -336,10 +337,11 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
             <th>Remaining</th>
             <th>Status</th>
             <th>Edit Reading</th>
+            <th>Edit Next Service</th>
           </tr>
         </thead>
         <tbody id="configMachineryBody">
-          <tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>
+          <tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -368,7 +370,35 @@ tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody
     </div>
   </div>
 
-  <!-- EDIT LOG -->
+  <!-- SERVICE EDIT MODAL -->
+  <div id="serviceEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,33,55,0.75);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+    <div style="background:var(--white);border-radius:14px;padding:32px;width:400px;box-shadow:var(--shadow-lg);">
+      <h3 style="font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--navy);margin-bottom:6px;">Edit Next Service Due</h3>
+      <p id="serviceEditAssetName" style="font-size:13px;color:var(--text-muted);margin-bottom:4px;"></p>
+      <p id="serviceEditCurrentDue" style="font-size:13px;color:var(--navy);font-weight:600;margin-bottom:20px;"></p>
+
+      <div class="alert" id="serviceEditAlert"></div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label id="serviceEditLabel">New Next Service Due (KM) *</label>
+        <input type="number" id="serviceEditNextDue" placeholder="e.g. 236000" min="0"
+          style="border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-family:var(--font-body);font-size:14px;width:100%;outline:none;">
+        <span style="font-size:11px;color:var(--text-muted);margin-top:4px;display:block;">
+          This also updates Last Service @ to: <strong id="serviceEditLastSvcPreview">—</strong>
+        </span>
+      </div>
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Reason for Edit *</label>
+        <input type="text" id="serviceEditReason" placeholder="e.g. Service done at 232,000 KM"
+          style="border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-family:var(--font-body);font-size:14px;width:100%;outline:none;">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-accent" onclick="saveServiceEdit()" id="serviceEditSaveBtn">&#10003; Save</button>
+        <button class="btn btn-secondary" onclick="closeServiceEdit()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><h3>&#128221; Reading Edit Log</h3></div>
     <div class="table-wrap">
@@ -710,8 +740,8 @@ let configEditOldReading = 0;
 let configEditMetric = 'KM';
 
 async function loadConfig() {
-  document.getElementById('configVehicleBody').innerHTML   = '<tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>';
-  document.getElementById('configMachineryBody').innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>';
+  document.getElementById('configVehicleBody').innerHTML   = '<tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr>';
+  document.getElementById('configMachineryBody').innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr>';
   try {
     const res = await gasPost({ action: 'getConfig' });
     if (res.status !== 'ok') throw new Error(res.message);
@@ -721,14 +751,14 @@ async function loadConfig() {
     loadConfigEditLog();
   } catch(err) {
     document.getElementById('configVehicleBody').innerHTML =
-      `<tr><td colspan="7"><div class="empty-state"><p>Error: ${err.message}</p></div></td></tr>`;
+      `<tr><td colspan="8"><div class="empty-state"><p>Error: ${err.message}</p></div></td></tr>`;
   }
 }
 
 function renderConfigTable(tbodyId, assets) {
   const tbody = document.getElementById(tbodyId);
   if (!assets || !assets.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No data.</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No data.</p></div></td></tr>';
     return;
   }
   tbody.innerHTML = assets.map(a => {
@@ -739,7 +769,7 @@ function renderConfigTable(tbodyId, assets) {
     return `<tr>
       <td><strong>${a.name}</strong></td>
       <td>${fmt(a.lastService)}</td>
-      <td>${fmt(a.nextDue)}</td>
+      <td><strong>${fmt(a.nextDue)}</strong></td>
       <td>
         <span style="font-weight:700;font-size:15px;">${fmt(a.latestReading)}</span>
         <span style="font-size:11px;color:var(--text-muted);margin-left:4px">${a.metric}</span>
@@ -751,6 +781,12 @@ function renderConfigTable(tbodyId, assets) {
       <td>
         <button class="btn btn-secondary btn-sm" onclick="openConfigEdit('${a.name}',${a.latestReading},'${a.metric}','${a.category}')">
           &#9998; Edit
+        </button>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" style="border-color:var(--blue);color:var(--blue);"
+          onclick="openServiceEdit('${a.name}',${a.nextDue},${a.interval},'${a.metric}')">
+          &#128295; Edit
         </button>
       </td>
     </tr>`;
@@ -844,6 +880,94 @@ async function loadConfigEditLog() {
 // Close overlay on background click
 document.getElementById('configEditOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeConfigEdit();
+});
+
+// ── SERVICE EDIT (Next Service Due) ──────────────────────────────────────────
+let serviceEditAsset    = '';
+let serviceEditOldDue   = 0;
+let serviceEditInterval = 5000;
+let serviceEditMetric   = 'KM';
+
+function openServiceEdit(assetName, currentNextDue, interval, metric) {
+  serviceEditAsset    = assetName;
+  serviceEditOldDue   = currentNextDue;
+  serviceEditInterval = interval;
+  serviceEditMetric   = metric;
+
+  document.getElementById('serviceEditAssetName').textContent    = assetName;
+  document.getElementById('serviceEditCurrentDue').textContent   =
+    'Current Next Service Due: ' + Number(currentNextDue).toLocaleString() + ' ' + metric;
+  document.getElementById('serviceEditLabel').textContent        = 'New Next Service Due (' + metric + ') *';
+  document.getElementById('serviceEditNextDue').value            = '';
+  document.getElementById('serviceEditReason').value             = '';
+  document.getElementById('serviceEditAlert').className          = 'alert';
+  document.getElementById('serviceEditLastSvcPreview').textContent = '—';
+
+  // Live preview of what Last Service @ will become
+  document.getElementById('serviceEditNextDue').oninput = function() {
+    const v = parseFloat(this.value);
+    if (!isNaN(v) && v > 0) {
+      const implied = v - serviceEditInterval;
+      document.getElementById('serviceEditLastSvcPreview').textContent =
+        implied.toLocaleString() + ' ' + serviceEditMetric;
+    } else {
+      document.getElementById('serviceEditLastSvcPreview').textContent = '—';
+    }
+  };
+
+  const overlay = document.getElementById('serviceEditOverlay');
+  overlay.style.display = 'flex';
+}
+
+function closeServiceEdit() {
+  document.getElementById('serviceEditOverlay').style.display = 'none';
+}
+
+async function saveServiceEdit() {
+  const newNextDue = document.getElementById('serviceEditNextDue').value;
+  const reason     = document.getElementById('serviceEditReason').value.trim();
+  const alertEl    = document.getElementById('serviceEditAlert');
+  const saveBtn    = document.getElementById('serviceEditSaveBtn');
+
+  if (!newNextDue || isNaN(Number(newNextDue)) || Number(newNextDue) <= 0) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Please enter a valid number.';
+    return;
+  }
+  if (!reason) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Please enter a reason for the change.';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+
+  try {
+    const res = await gasPost({
+      action:      'editNextServiceDue',
+      asset:       serviceEditAsset,
+      newNextDue:  Number(newNextDue),
+      interval:    serviceEditInterval,
+      metric:      serviceEditMetric,
+      reason:      reason,
+    });
+    if (res.status === 'ok') {
+      closeServiceEdit();
+      loadConfig();
+    } else throw new Error(res.message);
+  } catch(err) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.textContent = '❌ Error: ' + err.message;
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '✓ Save';
+  }
+}
+
+// Close service overlay on background click
+document.getElementById('serviceEditOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeServiceEdit();
 });
 
 </script>
