@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MJSR Fleet — Vehicle & Machinery Checks</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+:root{--navy:#0f2137;--navy2:#1a3a5c;--blue:#1e5fa8;--blue-light:#2d7dd2;--accent:#f0a500;--accent2:#e8891a;--ok:#1a7a4a;--ok-bg:#d4edda;--soon:#8a6000;--soon-bg:#fff3cd;--due:#8b1a1a;--due-bg:#f8d7da;--white:#ffffff;--off-white:#f4f6f9;--border:#dce3ec;--text:#1a2638;--text-muted:#5a6a7e;--card:#ffffff;--shadow:0 2px 12px rgba(15,33,55,0.10);--shadow-lg:0 8px 32px rgba(15,33,55,0.16);--radius:10px;--font-head:'Barlow Condensed',sans-serif;--font-body:'Barlow',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:var(--font-body);background:var(--off-white);color:var(--text);min-height:100vh}
+.topbar{background:var(--navy);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,0.25)}
+.topbar-brand{display:flex;align-items:center;gap:12px}.topbar-logo{width:32px;height:32px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:14px;color:var(--navy)}
+.topbar-title{font-family:var(--font-head);font-weight:700;font-size:18px;color:var(--white)}.topbar-sub{font-size:11px;color:rgba(255,255,255,0.5);font-weight:400;letter-spacing:1px;text-transform:uppercase}
+.status-pill{background:rgba(26,122,74,0.25);color:#6debb0;border:1px solid rgba(109,235,176,0.3);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600}
+.nav{background:var(--navy2);display:flex;padding:0 24px;gap:2px;border-bottom:2px solid var(--blue);overflow-x:auto}
+.nav-btn{background:none;border:none;color:rgba(255,255,255,0.55);font-family:var(--font-head);font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:14px 18px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.18s;white-space:nowrap}
+.nav-btn:hover{color:rgba(255,255,255,0.85)}.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.view{display:none;padding:24px;max-width:1100px;margin:0 auto}.view.active{display:block}
+.page-header{margin-bottom:24px}.page-header h2{font-family:var(--font-head);font-size:28px;font-weight:800;color:var(--navy)}.page-header p{color:var(--text-muted);font-size:14px;margin-top:4px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden}
+.card-header{background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.card-header h3{font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--white);letter-spacing:0.5px;text-transform:uppercase}
+.card-body{padding:20px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:24px}
+.stat-tile{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:18px 20px;box-shadow:var(--shadow)}
+.stat-tile .label{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.stat-tile .value{font-family:var(--font-head);font-size:36px;font-weight:800;line-height:1;color:var(--navy)}
+.stat-tile.ok{border-left:4px solid #1a7a4a}.stat-tile.ok .value{color:#1a7a4a}
+.stat-tile.soon{border-left:4px solid #f0a500}.stat-tile.soon .value{color:#8a6000}
+.stat-tile.due{border-left:4px solid #c0392b}.stat-tile.due .value{color:#c0392b}
+.stat-tile.total{border-left:4px solid var(--blue)}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:var(--navy);color:var(--white);font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:10px 14px;text-align:left;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}tbody tr:hover{background:#f0f4f9}tbody tr:last-child{border-bottom:none}tbody td{padding:10px 14px;color:var(--text);vertical-align:middle}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;white-space:nowrap}
+.badge-ok{background:var(--ok-bg);color:var(--ok)}.badge-soon{background:var(--soon-bg);color:var(--soon)}.badge-due{background:var(--due-bg);color:var(--due)}
+.badge-safe{background:#d4edda;color:#1a7a4a}.badge-unsafe{background:#f8d7da;color:#8b1a1a}
+.badge-vehicle{background:#dbeafe;color:#1e40af}.badge-machine{background:#ede9fe;color:#5b21b6}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}}
+.form-full{grid-column:1/-1}.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:12px;font-weight:600;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase}
+.form-group input,.form-group select,.form-group textarea{border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-family:var(--font-body);font-size:14px;color:var(--text);background:var(--white);transition:border-color 0.15s,box-shadow 0.15s;outline:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue-light);box-shadow:0 0 0 3px rgba(45,125,210,0.12)}
+.form-group textarea{resize:vertical;min-height:80px}
+.section-label{grid-column:1/-1;font-family:var(--font-head);font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--navy);background:var(--off-white);padding:8px 14px;border-radius:6px;border-left:4px solid var(--blue)}
+.radio-group{display:flex;flex-wrap:wrap;gap:8px}.radio-group input[type="radio"]{display:none}
+.radio-group label{display:inline-flex;align-items:center;padding:6px 14px;border:1.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:none;letter-spacing:0}
+.radio-group input[type="radio"]:checked+label{border-color:var(--blue);background:#dbeafe;color:var(--blue);font-weight:600}
+.radio-group.safety input[type="radio"]:checked+label.safe-label{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.radio-group.safety input[type="radio"]:checked+label.unsafe-label{border-color:var(--due);background:var(--due-bg);color:var(--due)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 24px;border-radius:8px;font-family:var(--font-head);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:none;transition:all 0.18s}
+.btn-primary{background:var(--blue);color:var(--white);box-shadow:0 4px 14px rgba(30,95,168,0.3)}.btn-primary:hover{background:var(--blue-light);transform:translateY(-1px)}
+.btn-primary:disabled{background:#aaa;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{background:var(--off-white);color:var(--text);border:1.5px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+.btn-accent{background:var(--accent);color:var(--navy);box-shadow:0 4px 14px rgba(240,165,0,0.3)}.btn-accent:hover{background:var(--accent2)}
+.btn-sm{padding:6px 14px;font-size:12px}
+.type-toggle{display:flex;gap:0;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;width:fit-content}
+.type-toggle button{padding:8px 22px;border:none;background:var(--white);font-family:var(--font-head);font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;color:var(--text-muted);transition:all 0.15s}
+.type-toggle button.active{background:var(--navy);color:var(--white)}
+.alert{padding:14px 18px;border-radius:8px;font-size:14px;font-weight:500;display:none;margin-bottom:16px;align-items:center;gap:10px}
+.alert.show{display:flex}.alert-success{background:var(--ok-bg);color:var(--ok);border:1px solid #a3d9b7}
+.alert-error{background:var(--due-bg);color:var(--due);border:1px solid #f5b7bb}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-bar input,.filter-bar select{border:1.5px solid var(--border);border-radius:7px;padding:7px 12px;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--white);outline:none}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--text-muted)}
+.pagination-btns{display:flex;gap:6px}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:6px}
+.progress-fill{height:100%;border-radius:3px;background:var(--blue);transition:width 0.3s}
+.progress-fill.ok{background:var(--ok)}.progress-fill.soon{background:var(--accent)}.progress-fill.due{background:#c0392b}
+.pin-dots{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:var(--white);transition:all 0.15s}
+.pin-dot.filled{background:var(--navy);border-color:var(--navy)}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pin-key{padding:14px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-head);font-size:20px;font-weight:700;color:var(--navy);background:var(--white);cursor:pointer;transition:all 0.12s}
+.pin-key:hover{background:var(--off-white)}.pin-key.clear{font-size:14px;color:var(--text-muted)}
+.pin-error{color:#c0392b;font-size:13px;margin-top:10px;display:none}
+.expand-row{display:none;background:#f8fafc}.expand-row.open{display:table-row}
+.expand-content{padding:14px 18px;font-size:13px}
+.expand-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.expand-item label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
+.expand-item p{font-size:13px;color:var(--text);margin-top:2px}
+.reports-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:24px}
+.empty-state{text-align:center;padding:36px 24px;color:var(--text-muted)}.empty-state .icon{font-size:36px;margin-bottom:10px}
+@media(max-width:768px){.view{padding:16px}.topbar-sub{display:none}.stat-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">MJ</div>
+    <div><div class="topbar-title">Fleet Management</div><div class="topbar-sub">Vehicle & Machinery Checks</div></div>
+  </div>
+  <span class="status-pill" id="connectionStatus">● Live</span>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showView('submit',this)">📋 Submit Check</button>
+  <button class="nav-btn" onclick="showView('dashboard',this)">📊 Dashboard</button>
+  <button class="nav-btn" onclick="showView('log',this)">📜 Log</button>
+  <button class="nav-btn" onclick="showView('reports',this)">📈 Reports</button>
+  <button class="nav-btn" onclick="showView('admin',this)">⚙️ Admin</button>
+</nav>
+
+<!-- SUBMIT -->
+<div class="view active" id="view-submit">
+  <div class="page-header"><h2>Submit Pre-Use Check</h2><p>Complete before operating any vehicle or machine. All fields marked * are required.</p></div>
+  <div class="card">
+    <div class="card-header">
+      <h3 id="formTitle">Vehicle Pre-Use Check</h3>
+      <div class="type-toggle">
+        <button class="active" id="toggleVehicle" onclick="setAssetType('vehicle')">🚘 Vehicle</button>
+        <button id="toggleMachine" onclick="setAssetType('machinery')">🏗️ Machinery</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div id="submitAlert" class="alert"></div>
+      <form id="checkForm" onsubmit="submitCheck(event)">
+        <div class="form-grid">
+          <div class="section-label">Section 1 — Operator & Asset Details</div>
+          <div class="form-group"><label>Date *</label><input type="date" id="f_date" required></div>
+          <div class="form-group"><label id="operatorLabel">Driver / Operator Name *</label><input type="text" id="f_operator" placeholder="Full name" required></div>
+          <div class="form-group"><label>Department *</label>
+            <select id="f_department" required><option value="">— Select —</option><option>Admin</option><option>Management</option><option>Operations</option><option>Maintenance</option><option>Medical</option><option>F&amp;B</option><option>Ski Patrol</option><option>Snowmaking</option><option>Other</option></select></div>
+          <div class="form-group"><label id="assetLabel">Vehicle *</label>
+            <select id="f_asset" required onchange="updateReadingLabel()"><option value="">— Select Vehicle —</option><option>Dyna (W) &#8211; SWT D 6394</option><option>Axio &#8211; SWT D 6399</option><option>Axio (R) &#8211; SWT D 6396</option><option>Premio &#8211; SWT D 6397</option><option>Prado &#8211; SWT D 6398</option><option>Dyna &#8211; AK 1214</option><option>Vigo &#8211; AK 1194</option><option>Ambulance &#8211; AM 1092</option></select></div>
+          <div class="form-group"><label>Location of Inspection *</label>
+            <select id="f_location" required><option value="">— Select —</option><option>PC Parking</option><option>Workshop</option><option>Base Camp</option><option>Mountain Station</option><option>Storage Yard</option><option>Other</option></select></div>
+          <div class="section-label" id="section2Label">Section 2 — Vehicle Condition Checks</div>
+          <div id="vehicleChecks" class="form-full"><div class="form-grid">
+            <div class="form-group"><label>Tyres Condition *</label><select id="v_tyres" required><option value="">— Select —</option><option>OK</option><option>Issue Found &#8211; Minor</option><option>Issue Found &#8211; Major</option></select></div>
+            <div class="form-group"><label>Lights &amp; Indicators *</label><select id="v_lights" required><option value="">— Select —</option><option>OK</option><option>Issue Found &#8211; Minor</option><option>Issue Found &#8211; Major</option></select></div>
+            <div class="form-group"><label>Brakes *</label><select id="v_brakes" required><option value="">— Select —</option><option>OK</option><option>Issue Found &#8211; Minor</option><option>Issue Found &#8211; Major</option></select></div>
+            <div class="form-group"><label>Steering *</label><select id="v_steering" required><option value="">— Select —</option><option>OK</option><option>Issue Found &#8211; Minor</option><option>Issue Found &#8211; Major</option></select></div>
+            <div class="form-group"><label>Wipers *</label><select id="v_wipers" required><option value="">— Select —</option><option>OK</option><option>Issue Found &#8211; Minor</option><option>Issue Found &#8211; Major</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Fluid Leaks? *</label><select id="v_leaks" required><option value="">— Select —</option><option>No</option><option>Yes &#8211; Minor Leak</option><option>Yes &#8211; Major Leak</option></select></div>
+            <div class="form-group"><label>Dashboard Warning Lights? *</label><select id="v_warnings" required><option value="">— Select —</option><option>No</option><option>Yes &#8211; Minor Warning</option><option>Yes &#8211; Critical Warning</option></select></div>
+            <div class="form-group"><label>Windscreen &amp; Mirrors *</label><select id="v_windscreen" required><option value="">— Select —</option><option>OK &#8211; Clean and clear</option><option>Dirty but usable</option><option>Damaged / Cracked &#8211; Needs repair</option></select></div>
+            <div class="section-label form-full">Section 3 — Fluid &amp; Fuel Levels</div>
+            <div class="form-group"><label>Fuel Level *</label><select id="v_fuel" required><option value="">— Select —</option><option>Full</option><option>&#190;</option><option>&#189;</option><option>&#188;</option><option>Empty &#8211; needs refuel</option></select></div>
+            <div class="form-group"><label>Engine Oil Level *</label><select id="v_oil" required><option value="">— Select —</option><option>Full</option><option>Acceptable (above min)</option><option>Low &#8211; needs top up</option><option>Not checked</option></select></div>
+            <div class="form-group"><label>Coolant Level *</label><select id="v_coolant" required><option value="">— Select —</option><option>Full</option><option>Acceptable</option><option>Low &#8211; needs top up</option><option>Not checked</option></select></div>
+            <div class="form-group"><label>Battery Condition</label><select id="v_battery"><option value="">— Select —</option><option>OK</option><option>Corroded terminals</option><option>Low charge / flat</option><option>Not Applicable / Not Checked</option></select></div>
+            <div class="section-label form-full">Section 4 — Exterior</div>
+            <div class="form-group form-full"><label>Bodywork / Exterior Damage *</label><select id="v_bodywork" required><option value="">— Select —</option><option>No damage</option><option>Minor scratches / dents (pre-existing)</option><option>New damage found &#8211; report required</option><option>Significant damage &#8211; vehicle should not operate</option></select></div>
+          </div></div>
+          <div id="machineryChecks" style="display:none;" class="form-full"><div class="form-grid">
+            <div class="section-label form-full">Section 2 — Engine &amp; Fluid Checks</div>
+            <div class="form-group"><label>Engine Oil Level *</label><select id="m_oil"><option value="">— Select —</option><option>Full</option><option>Acceptable (above minimum)</option><option>Low &#8211; needs top up</option><option>Not Checked</option></select></div>
+            <div class="form-group"><label>Coolant Level *</label><select id="m_coolant"><option value="">— Select —</option><option>Full</option><option>Acceptable (above minimum)</option><option>Low &#8211; needs top up</option><option>Not Checked</option></select></div>
+            <div class="form-group"><label>Hydraulic Fluid Level *</label><select id="m_hydraulic"><option value="">— Select —</option><option>Full</option><option>Acceptable (above minimum)</option><option>Low &#8211; needs top up</option><option>Not Checked</option></select></div>
+            <div class="form-group"><label>Fuel Level *</label><select id="m_fuel"><option value="">— Select —</option><option>Full</option><option>&#190;</option><option>&#189;</option><option>&#188;</option><option>Empty &#8211; needs refuel</option></select></div>
+            <div class="form-group"><label>Air Filter Condition *</label><select id="m_airfilter"><option value="">— Select —</option><option>Clean / OK</option><option>Dirty &#8211; clean required</option><option>Blocked &#8211; replacement needed</option><option>Not Checked</option></select></div>
+            <div class="section-label form-full">Section 3 — Mechanical &amp; Safety Checks</div>
+            <div class="form-group"><label>Drive Belt / Chain *</label><select id="m_belt"><option value="">— Select —</option><option>OK</option><option>Worn &#8211; monitor</option><option>Damaged &#8211; needs repair</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Tyres / Tracks Condition *</label><select id="m_tracks"><option value="">— Select —</option><option>OK &#8211; good condition</option><option>Worn &#8211; acceptable</option><option>Damaged / flat &#8211; repair needed</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Attachment Security *</label><select id="m_attachment"><option value="">— Select —</option><option>Secure and correctly fitted</option><option>Not fully secured &#8211; adjusted</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Hydraulics Functioning *</label><select id="m_hydraulics"><option value="">— Select —</option><option>Yes &#8211; functioning normally</option><option>Issue detected &#8211; minor</option><option>Issue detected &#8211; major</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Safety Guards &amp; Shields *</label><select id="m_guards"><option value="">— Select —</option><option>Yes &#8211; all in place</option><option>Missing one or more &#8211; report required</option><option>Not Applicable</option></select></div>
+            <div class="form-group"><label>Warning Beacons / Alarms *</label><select id="m_beacons"><option value="">— Select —</option><option>Yes &#8211; all working</option><option>One or more not working &#8211; report required</option><option>Not Applicable</option></select></div>
+            <div class="form-group form-full"><label>Dashboard Warning Lights / Error Codes? *</label><select id="m_warnings"><option value="">— Select —</option><option>No</option><option>Yes &#8211; Minor warning</option><option>Yes &#8211; Critical warning</option></select></div>
+          </div></div>
+          <div class="section-label" id="section5Label">Section 5 — Reading &amp; Sign-Off</div>
+          <div class="form-group"><label id="readingLabel">Current KM Reading *</label><input type="text" id="f_reading" placeholder="e.g. 133085" required></div>
+          <div class="form-group form-full"><label>Additional Comments / Observations</label><textarea id="f_comments" placeholder="Note any issues not covered above..."></textarea></div>
+          <div class="form-group form-full"><label>Is the asset SAFE to operate? *</label>
+            <div class="radio-group safety">
+              <input type="radio" name="safe" id="safe_yes" value="Yes, Safe to Operate" required>
+              <label for="safe_yes" class="safe-label">&#10003; Yes, Safe to Operate</label>
+              <input type="radio" name="safe" id="safe_no" value="No, NOT Safe to Operate">
+              <label for="safe_no" class="unsafe-label">&#9940; No, NOT Safe to Operate</label>
+            </div></div>
+          <div class="form-group form-full" id="unsafeReasonGroup" style="display:none;"><label>If NOT Safe — describe why *</label><textarea id="f_unsafe_reason" placeholder="Describe the safety issue..."></textarea></div>
+          <div class="form-full" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;">
+            <button type="submit" class="btn btn-primary" id="submitBtn"><span class="spinner" id="submitSpinner"></span><span id="submitBtnText">Submit Check</span></button>
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">Clear Form</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="view" id="view-dashboard">
+  <div class="page-header"><h2>Fleet Dashboard</h2><p>Live service status for all vehicles and machinery.</p></div>
+  <div class="stat-grid">
+    <div class="stat-tile total"><div class="label">Total Assets</div><div class="value" id="statTotal">10</div></div>
+    <div class="stat-tile ok"><div class="label">&#10003; OK</div><div class="value" id="statOK">&#8212;</div></div>
+    <div class="stat-tile soon"><div class="label">&#9888; Soon</div><div class="value" id="statSoon">&#8212;</div></div>
+    <div class="stat-tile due"><div class="label">&#9940; Due</div><div class="value" id="statDue">&#8212;</div></div>
+    <div class="stat-tile total"><div class="label">Checks Today</div><div class="value" id="statToday">&#8212;</div></div>
+    <div class="stat-tile due"><div class="label">Unsafe Today</div><div class="value" id="statUnsafe">&#8212;</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><h3>&#128664; Vehicles</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Asset</th><th>Last Service</th><th>Next Due</th><th>Current KM</th><th>Remaining</th><th>Progress</th><th>Status</th><th>Today</th></tr></thead>
+      <tbody id="vehicleTableBody"><tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>&#127959; Machinery</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Asset</th><th>Last Service</th><th>Next Due</th><th>Current Hours</th><th>Remaining</th><th>Progress</th><th>Status</th><th>Today</th></tr></thead>
+      <tbody id="machineryTableBody"><tr><td colspan="8"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+    </table></div>
+  </div>
+  <div style="text-align:right;margin-top:12px;"><button class="btn btn-secondary btn-sm" onclick="loadDashboard()">&#128260; Refresh</button></div>
+</div>
+
+<!-- LOG -->
+<div class="view" id="view-log">
+  <div class="page-header"><h2>Submission Log</h2><p>All pre-use check submissions. Click any row to expand full details.</p></div>
+  <div class="filter-bar">
+    <input type="date" id="logDateFrom"><input type="date" id="logDateTo">
+    <select id="logAssetFilter"><option value="">All Assets</option><option>Dyna (W) &#8211; SWT D 6394</option><option>Axio &#8211; SWT D 6399</option><option>Axio (R) &#8211; SWT D 6396</option><option>Premio &#8211; SWT D 6397</option><option>Prado &#8211; SWT D 6398</option><option>Dyna &#8211; AK 1214</option><option>Vigo &#8211; AK 1194</option><option>Ambulance &#8211; AM 1092</option><option>Snowblower</option><option>Tractor (Loader)</option></select>
+    <select id="logSafeFilter"><option value="">All</option><option value="safe">Safe Only</option><option value="unsafe">Unsafe Only</option></select>
+    <button class="btn btn-primary btn-sm" onclick="loadLog()">Search</button>
+    <button class="btn btn-secondary btn-sm" onclick="clearLogFilters()">Clear</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Asset</th><th>Type</th><th>Operator</th><th>Reading</th><th>Safe?</th><th></th></tr></thead>
+      <tbody id="logTableBody"><tr><td colspan="7"><div class="empty-state"><div class="icon">&#128203;</div><p>Use filters above and click Search.</p></div></td></tr></tbody>
+    </table></div>
+    <div class="pagination"><span id="logInfo">&#8212;</span><div class="pagination-btns"><button class="btn btn-secondary btn-sm" id="logPrevBtn" onclick="logPrevPage()" disabled>&#8592; Prev</button><button class="btn btn-secondary btn-sm" id="logNextBtn" onclick="logNextPage()" disabled>Next &#8594;</button></div></div>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="view" id="view-reports">
+  <div class="page-header"><h2>Reports</h2><p>Summary statistics and compliance overview.</p></div>
+  <div class="reports-grid">
+    <div class="card"><div class="card-header"><h3>&#128197; This Month</h3></div><div class="card-body" id="reportMonth"><div class="empty-state"><p>Loading...</p></div></div></div>
+    <div class="card"><div class="card-header"><h3>&#128680; Unsafe Reports</h3></div><div class="card-body" id="reportUnsafe"><div class="empty-state"><p>Loading...</p></div></div></div>
+    <div class="card"><div class="card-header"><h3>&#128295; Service Status</h3></div><div class="card-body" id="reportService"><div class="empty-state"><p>Loading...</p></div></div></div>
+    <div class="card"><div class="card-header"><h3>&#128100; Top Operators</h3></div><div class="card-body" id="reportOperators"><div class="empty-state"><p>Loading...</p></div></div></div>
+  </div>
+  <div style="text-align:right;"><button class="btn btn-secondary btn-sm" onclick="loadReports()">&#128260; Refresh</button></div>
+</div>
+
+<!-- ADMIN -->
+<div class="view" id="view-admin">
+  <div class="page-header"><h2>Admin Panel</h2><p>SNR Technical Manager access only.</p></div>
+  <div id="adminLocked">
+    <div class="card" style="max-width:340px;margin:0 auto;">
+      <div class="card-header"><h3>&#128274; PIN Required</h3></div>
+      <div class="card-body" style="padding:28px;text-align:center;">
+        <p style="color:var(--text-muted);margin-bottom:20px;">Enter the 4-digit admin PIN.</p>
+        <div class="pin-dots"><div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div><div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div></div>
+        <div class="pin-keypad">
+          <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
+          <button class="pin-key" onclick="pinKey('4')">4</button><button class="pin-key" onclick="pinKey('5')">5</button><button class="pin-key" onclick="pinKey('6')">6</button>
+          <button class="pin-key" onclick="pinKey('7')">7</button><button class="pin-key" onclick="pinKey('8')">8</button><button class="pin-key" onclick="pinKey('9')">9</button>
+          <button class="pin-key clear" onclick="pinClear()">Clear</button><button class="pin-key" onclick="pinKey('0')">0</button><button class="pin-key" onclick="pinBackspace()">&#9003;</button>
+        </div>
+        <div class="pin-error" id="pinError">Incorrect PIN. Try again.</div>
+      </div>
+    </div>
+  </div>
+  <div id="adminUnlocked" style="display:none;">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><h3>&#128295; Update Last Service Reading</h3><button class="btn btn-secondary btn-sm" onclick="lockAdmin()">&#128274; Lock</button></div>
+      <div class="card-body">
+        <div id="serviceAlert" class="alert"></div>
+        <div class="form-grid">
+          <div class="form-group"><label>Asset *</label><select id="a_asset"><option value="">&#8212; Select Asset &#8212;</option><option>Dyna (W) &#8211; SWT D 6394</option><option>Axio &#8211; SWT D 6399</option><option>Axio (R) &#8211; SWT D 6396</option><option>Premio &#8211; SWT D 6397</option><option>Prado &#8211; SWT D 6398</option><option>Dyna &#8211; AK 1214</option><option>Vigo &#8211; AK 1194</option><option>Ambulance &#8211; AM 1092</option><option>Snowblower</option><option>Tractor (Loader)</option></select></div>
+          <div class="form-group"><label>Service Reading (KM or Hours) *</label><input type="number" id="a_reading" placeholder="e.g. 232000" min="0"></div>
+          <div class="form-group form-full"><label>Service Notes (optional)</label><textarea id="a_notes" placeholder="What was done during this service..."></textarea></div>
+          <div class="form-full"><button class="btn btn-accent" onclick="updateService()">&#128295; Update Service Record</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>&#128203; Service History</h3></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Asset</th><th>Reading at Service</th><th>Notes</th><th>Updated By</th></tr></thead>
+        <tbody id="serviceHistoryBody"><tr><td colspan="5"><div class="empty-state"><p>Loading...</p></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAS_URL   = 'https://script.google.com/macros/s/AKfycbwLtIGBIFBYqa6ebBtTywO-iKwEIHX5dOlDzqryFMOCewHcLs_UkiSeYfWwTFpOEjOS9g/exec';
+const ADMIN_PIN = '1234';
+const PAGE_SIZE = 25;
+
+// Current live asset data seeded from spreadsheet — dashboard shows this
+// immediately while GAS loads, then GAS data overwrites it
+const SEED_DATA = {
+  vehicles: [
+    {name:'Dyna (W) \u2013 SWT D 6394', metric:'KM', interval:5000, lastService:226289, nextDue:231289, latestReading:231408, remaining:-119, status:'\u26d4 DUE', checksToday:0},
+    {name:'Axio \u2013 SWT D 6399',      metric:'KM', interval:5000, lastService:131790, nextDue:136790, latestReading:138477, remaining:-1687, status:'\u26d4 DUE', checksToday:0},
+    {name:'Axio (R) \u2013 SWT D 6396',  metric:'KM', interval:5000, lastService:65482,  nextDue:70482,  latestReading:69113,  remaining:1369, status:'\u2705 OK',  checksToday:0},
+    {name:'Premio \u2013 SWT D 6397',    metric:'KM', interval:5000, lastService:149390, nextDue:154390, latestReading:152776, remaining:1614, status:'\u2705 OK',  checksToday:0},
+    {name:'Prado \u2013 SWT D 6398',     metric:'KM', interval:5000, lastService:41876,  nextDue:46876,  latestReading:45047,  remaining:1829, status:'\u2705 OK',  checksToday:0},
+    {name:'Dyna \u2013 AK 1214',         metric:'KM', interval:5000, lastService:437598, nextDue:442598, latestReading:437606, remaining:4992, status:'\u2705 OK',  checksToday:0},
+    {name:'Vigo \u2013 AK 1194',         metric:'KM', interval:5000, lastService:243384, nextDue:248384, latestReading:246842, remaining:1542, status:'\u2705 OK',  checksToday:0},
+    {name:'Ambulance \u2013 AM 1092',    metric:'KM', interval:5000, lastService:243753, nextDue:248753, latestReading:243866, remaining:4887, status:'\u2705 OK',  checksToday:0},
+  ],
+  machinery: [
+    {name:'Snowblower',       metric:'HOURS', interval:250, lastService:300,  nextDue:550,    latestReading:0,   remaining:550,    status:'\u2705 OK', checksToday:0},
+    {name:'Tractor (Loader)', metric:'HOURS', interval:250, lastService:3.08, nextDue:253.08, latestReading:100, remaining:153.08, status:'\u2705 OK', checksToday:0},
+  ]
+};
+
+let currentAssetType = 'vehicle';
+let pinInput = '';
+let logPage  = 1;
+let logData  = [];
+
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'reports')   loadReports();
+}
+
+function setAssetType(type) {
+  currentAssetType = type;
+  const isV = type === 'vehicle';
+  document.getElementById('toggleVehicle').classList.toggle('active', isV);
+  document.getElementById('toggleMachine').classList.toggle('active', !isV);
+  document.getElementById('formTitle').textContent      = isV ? 'Vehicle Pre-Use Check' : 'Machinery Pre-Use Check';
+  document.getElementById('vehicleChecks').style.display   = isV ? '' : 'none';
+  document.getElementById('machineryChecks').style.display = isV ? 'none' : '';
+  document.getElementById('operatorLabel').textContent  = isV ? 'Driver / Operator Name *' : 'Operator Name *';
+  document.getElementById('assetLabel').textContent     = isV ? 'Vehicle *' : 'Machine *';
+  document.getElementById('section2Label').textContent  = isV ? 'Section 2 \u2014 Vehicle Condition Checks' : 'Section 2 \u2014 Engine & Fluid Checks';
+  document.getElementById('section5Label').textContent  = isV ? 'Section 5 \u2014 Reading & Sign-Off' : 'Section 4 \u2014 Reading & Sign-Off';
+  const sel = document.getElementById('f_asset');
+  sel.innerHTML = '<option value="">\u2014 Select ' + (isV ? 'Vehicle' : 'Machine') + ' \u2014</option>';
+  const opts = isV
+    ? ['Dyna (W) \u2013 SWT D 6394','Axio \u2013 SWT D 6399','Axio (R) \u2013 SWT D 6396','Premio \u2013 SWT D 6397','Prado \u2013 SWT D 6398','Dyna \u2013 AK 1214','Vigo \u2013 AK 1194','Ambulance \u2013 AM 1092']
+    : ['Snowblower','Tractor (Loader)'];
+  opts.forEach(o => sel.add(new Option(o, o)));
+  updateReadingLabel();
+}
+
+function updateReadingLabel() {
+  document.getElementById('readingLabel').textContent = currentAssetType === 'vehicle' ? 'Current KM Reading *' : 'Current Machine Hours *';
+}
+
+document.querySelectorAll('input[name="safe"]').forEach(r => {
+  r.addEventListener('change', function() {
+    const notSafe = this.value.includes('No');
+    document.getElementById('unsafeReasonGroup').style.display = notSafe ? '' : 'none';
+    document.getElementById('f_unsafe_reason').required = notSafe;
+  });
+});
+
+document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+
+async function gasPost(payload) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+async function submitCheck(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const spinner = document.getElementById('submitSpinner');
+  const btnText = document.getElementById('submitBtnText');
+  const alertEl = document.getElementById('submitAlert');
+  const isV = currentAssetType === 'vehicle';
+  btn.disabled = true; spinner.style.display = 'block'; btnText.textContent = 'Submitting...'; alertEl.className = 'alert';
+  const safeVal = document.querySelector('input[name="safe"]:checked')?.value || '';
+  const payload = {
+    action:'submitCheck', assetType: isV ? 'vehicle' : 'machinery',
+    date: document.getElementById('f_date').value,
+    operator: document.getElementById('f_operator').value,
+    department: document.getElementById('f_department').value,
+    asset: document.getElementById('f_asset').value,
+    location: document.getElementById('f_location').value,
+    reading: document.getElementById('f_reading').value,
+    comments: document.getElementById('f_comments').value,
+    safeToOperate: safeVal,
+    unsafeReason: document.getElementById('f_unsafe_reason').value,
+  };
+  if (isV) Object.assign(payload, {tyres:g('v_tyres'),lights:g('v_lights'),brakes:g('v_brakes'),steering:g('v_steering'),wipers:g('v_wipers'),leaks:g('v_leaks'),warnings:g('v_warnings'),windscreen:g('v_windscreen'),fuel:g('v_fuel'),oil:g('v_oil'),coolant:g('v_coolant'),battery:g('v_battery'),bodywork:g('v_bodywork')});
+  else Object.assign(payload, {oil:g('m_oil'),coolant:g('m_coolant'),hydraulic:g('m_hydraulic'),fuel:g('m_fuel'),airfilter:g('m_airfilter'),belt:g('m_belt'),tracks:g('m_tracks'),attachment:g('m_attachment'),hydraulics:g('m_hydraulics'),guards:g('m_guards'),beacons:g('m_beacons'),warnings:g('m_warnings')});
+  try {
+    const res = await gasPost(payload);
+    if (res.status === 'ok') {
+      alertEl.className = 'alert alert-success show';
+      alertEl.innerHTML = '\u2705 Check submitted for <strong>' + payload.asset + '</strong>.' + (safeVal.includes('No') ? '<br>\u26a0\ufe0f <strong>UNSAFE report logged.</strong> Supervisor notified.' : '');
+      resetForm();
+    } else throw new Error(res.message || 'Unknown error');
+  } catch(err) {
+    alertEl.className = 'alert alert-error show';
+    alertEl.innerHTML = '\u274c Submission failed: ' + err.message;
+  } finally { btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = 'Submit Check'; }
+}
+
+function g(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function resetForm() {
+  document.getElementById('checkForm').reset();
+  document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('unsafeReasonGroup').style.display = 'none';
+  setAssetType(currentAssetType);
+}
+
+async function loadDashboard() {
+  // Show seed data immediately for instant load
+  renderDashboardData(SEED_DATA);
+  // GAS connected
+  try {
+    const res = await gasPost({ action: 'getDashboard' });
+    if (res.status === 'ok') renderDashboardData(res.data);
+  } catch(err) { console.error('Dashboard:', err); }
+}
+
+function renderDashboardData(d) {
+  document.getElementById('statTotal').textContent  = d.total  ?? 10;
+  document.getElementById('statOK').textContent     = d.ok     ?? '—';
+  document.getElementById('statSoon').textContent   = d.soon   ?? '—';
+  document.getElementById('statDue').textContent    = d.due    ?? '—';
+  document.getElementById('statToday').textContent  = d.checksToday ?? 0;
+  document.getElementById('statUnsafe').textContent = d.unsafeToday ?? 0;
+  renderAssetTable('vehicleTableBody',   d.vehicles  || SEED_DATA.vehicles);
+  renderAssetTable('machineryTableBody', d.machinery || SEED_DATA.machinery);
+}
+
+function renderAssetTable(id, assets) {
+  const tbody = document.getElementById(id);
+  if (!assets || !assets.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><p>No data.</p></div></td></tr>'; return; }
+  tbody.innerHTML = assets.map(a => {
+    const remaining = Number(a.remaining) || 0;
+    const interval  = Number(a.interval)  || 5000;
+    const pct  = Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100));
+    const sc   = a.status.includes('OK') ? 'ok' : a.status.includes('SOON') ? 'soon' : 'due';
+    return `<tr>
+      <td><strong>${a.name}</strong></td>
+      <td>${fmt(a.lastService)}</td>
+      <td>${fmt(a.nextDue)}</td>
+      <td>${fmt(a.latestReading)} <span style="font-size:11px;color:var(--text-muted)">${a.metric}</span></td>
+      <td><strong>${fmt(remaining)}</strong></td>
+      <td style="min-width:90px;"><div class="progress-bar"><div class="progress-fill ${sc}" style="width:${pct.toFixed(1)}%"></div></div></td>
+      <td><span class="badge badge-${sc}">${a.status}</span></td>
+      <td style="text-align:center">${a.checksToday ?? 0}</td>
+    </tr>`;
+  }).join('');
+}
+
+function fmt(n) { if (n===undefined||n===null||n==='') return '—'; const num=Number(n); if(isNaN(num)) return n; return num.toLocaleString(); }
+
+async function loadLog() {
+  const tbody = document.getElementById('logTableBody');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Loading...</p></div></td></tr>';
+  try {
+    const res = await gasPost({action:'getLog', dateFrom:document.getElementById('logDateFrom').value, dateTo:document.getElementById('logDateTo').value, asset:document.getElementById('logAssetFilter').value, safeFilter:document.getElementById('logSafeFilter').value});
+    if (res.status !== 'ok') throw new Error(res.message);
+    logData = res.data || []; logPage = 1; renderLogPage();
+  } catch(err) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>Error: ' + err.message + '</p></div></td></tr>'; }
+}
+
+function renderLogPage() {
+  const tbody = document.getElementById('logTableBody');
+  const start = (logPage-1)*PAGE_SIZE;
+  const slice = logData.slice(start, start+PAGE_SIZE);
+  const total = logData.length;
+  const pages = Math.ceil(total/PAGE_SIZE);
+  if (!slice.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">&#128269;</div><p>No results found.</p></div></td></tr>';
+    document.getElementById('logInfo').textContent = '0 results';
+    document.getElementById('logPrevBtn').disabled = true; document.getElementById('logNextBtn').disabled = true; return;
+  }
+  tbody.innerHTML = slice.map((row,i) => {
+    const idx = start+i;
+    const isSafe = row.safe && row.safe.includes('Yes');
+    const safeBadge = isSafe ? '<span class="badge badge-safe">\u2705 Safe</span>' : '<span class="badge badge-unsafe">\u26d4 Unsafe</span>';
+    const typeBadge = row.type==='vehicle' ? '<span class="badge badge-vehicle">Vehicle</span>' : '<span class="badge badge-machine">Machine</span>';
+    return `<tr onclick="toggleExpand(${idx})" style="cursor:pointer">
+      <td>${fmtDate(row.date)}</td><td><strong>${row.asset||'—'}</strong></td><td>${typeBadge}</td>
+      <td>${row.operator||'—'}</td><td>${fmt(row.reading)} <span style="font-size:11px;color:var(--text-muted)">${row.metric||''}</span></td>
+      <td>${safeBadge}</td><td><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();toggleExpand(${idx})">&#9660;</button></td>
+    </tr>
+    <tr class="expand-row" id="expand-${idx}"><td colspan="7"><div class="expand-content"><div class="expand-grid">
+      <div class="expand-item"><label>Department</label><p>${row.department||'—'}</p></div>
+      <div class="expand-item"><label>Location</label><p>${row.location||'—'}</p></div>
+      <div class="expand-item"><label>Comments</label><p>${row.comments||'None'}</p></div>
+      ${!isSafe?'<div class="expand-item" style="grid-column:1/-1"><label>\u26a0\ufe0f Unsafe Reason</label><p style="color:#c0392b">'+(row.unsafeReason||'—')+'</p></div>':''}
+    </div></div></td></tr>`;
+  }).join('');
+  document.getElementById('logInfo').textContent = `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total} (Page ${logPage}/${pages})`;
+  document.getElementById('logPrevBtn').disabled = logPage<=1;
+  document.getElementById('logNextBtn').disabled = logPage>=pages;
+}
+
+function toggleExpand(idx) { const r=document.getElementById('expand-'+idx); if(r) r.classList.toggle('open'); }
+function logPrevPage() { if(logPage>1){logPage--;renderLogPage();} }
+function logNextPage() { logPage++;renderLogPage(); }
+function clearLogFilters() { ['logDateFrom','logDateTo'].forEach(id=>document.getElementById(id).value=''); ['logAssetFilter','logSafeFilter'].forEach(id=>document.getElementById(id).value=''); }
+function fmtDate(d) { if(!d) return '—'; try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return d;} }
+
+async function loadReports() {
+  if (false) {
+    document.getElementById('reportMonth').innerHTML = '<div class="empty-state"><p>Connect GAS backend to see report data.</p></div>';
+    document.getElementById('reportUnsafe').innerHTML = '<div class="empty-state"><p>Connect GAS backend to see unsafe reports.</p></div>';
+    document.getElementById('reportOperators').innerHTML = '<div class="empty-state"><p>Connect GAS backend to see operator data.</p></div>';
+    // Service status always available from seed data
+    document.getElementById('reportService').innerHTML = SEED_DATA.vehicles.concat(SEED_DATA.machinery).filter(a=>!a.status.includes('OK')).map(a=>{
+      const sc=a.status.includes('SOON')?'soon':'due';
+      const pct=Math.max(0,Math.min(100,((a.interval-a.remaining)/a.interval)*100));
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>${a.name}</strong><span class="badge badge-${sc}" style="float:right">${a.status}</span><br><span style="font-size:12px;color:var(--text-muted)">Remaining: ${fmt(a.remaining)} ${a.metric}</span><div class="progress-bar" style="margin-top:6px"><div class="progress-fill ${sc}" style="width:${pct.toFixed(1)}%"></div></div></div>`;
+    }).join('') || '<div class="empty-state"><p>All assets within service interval.</p></div>';
+    return;
+  }
+  try {
+    const res = await gasPost({action:'getReports'});
+    if (res.status !== 'ok') throw new Error(res.message);
+    const r = res.data;
+    document.getElementById('reportMonth').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="stat-tile ok" style="box-shadow:none"><div class="label">Total Checks</div><div class="value">${r.monthTotal||0}</div></div><div class="stat-tile due" style="box-shadow:none"><div class="label">Unsafe Reports</div><div class="value">${r.monthUnsafe||0}</div></div></div>`;
+    document.getElementById('reportUnsafe').innerHTML = r.unsafeList?.length ? r.unsafeList.map(u=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>${u.asset}</strong><br><span style="font-size:12px;color:var(--text-muted)">${fmtDate(u.date)} — ${u.operator}</span><br><span style="font-size:12px;color:#c0392b">${u.reason||'No reason given'}</span></div>`).join('') : '<div class="empty-state"><p>No unsafe reports this month.</p></div>';
+    document.getElementById('reportService').innerHTML = r.serviceDue?.length ? r.serviceDue.map(s=>{const sc=s.status.includes('SOON')?'soon':'due';return `<div style="padding:8px 0;border-bottom:1px solid var(--border)"><strong>${s.name}</strong><span class="badge badge-${sc}" style="float:right">${s.status}</span><br><span style="font-size:12px;color:var(--text-muted)">Remaining: ${fmt(s.remaining)} ${s.metric}</span><div class="progress-bar" style="margin-top:6px"><div class="progress-fill ${sc}" style="width:${s.pct}%"></div></div></div>`;}).join('') : '<div class="empty-state"><p>All assets within service interval.</p></div>';
+    document.getElementById('reportOperators').innerHTML = r.topOperators?.length ? r.topOperators.map((o,i)=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><span><strong>${i+1}. ${o.name}</strong></span><span class="badge badge-vehicle">${o.count} checks</span></div>`).join('') : '<div class="empty-state"><p>No operator data.</p></div>';
+  } catch(err) { console.error('Reports:', err); }
+}
+
+function pinKey(k) {
+  if(pinInput.length>=4) return; pinInput+=k; updateDots();
+  if(pinInput.length===4) { setTimeout(()=>{ if(pinInput===ADMIN_PIN){document.getElementById('adminLocked').style.display='none';document.getElementById('adminUnlocked').style.display='';loadServiceHistory();}else{document.getElementById('pinError').style.display='block';pinInput='';updateDots();setTimeout(()=>document.getElementById('pinError').style.display='none',2000);} },200); }
+}
+function pinClear()     { pinInput=''; updateDots(); }
+function pinBackspace() { pinInput=pinInput.slice(0,-1); updateDots(); }
+function updateDots()   { for(let i=0;i<4;i++) document.getElementById('dot'+i).classList.toggle('filled',i<pinInput.length); }
+function lockAdmin()    { pinInput=''; updateDots(); document.getElementById('adminLocked').style.display=''; document.getElementById('adminUnlocked').style.display='none'; }
+
+async function updateService() {
+  const asset=document.getElementById('a_asset').value, reading=document.getElementById('a_reading').value, notes=document.getElementById('a_notes').value, alertEl=document.getElementById('serviceAlert');
+  if(!asset||!reading){alertEl.className='alert alert-error show';alertEl.textContent='\u274c Please select an asset and enter the service reading.';return;}
+  try {
+    const res=await gasPost({action:'updateService',asset,reading:Number(reading),notes});
+    if(res.status==='ok'){alertEl.className='alert alert-success show';alertEl.textContent='\u2705 Service record updated for '+asset+'.';document.getElementById('a_asset').value='';document.getElementById('a_reading').value='';document.getElementById('a_notes').value='';loadServiceHistory();}
+    else throw new Error(res.message);
+  } catch(err){alertEl.className='alert alert-error show';alertEl.textContent='\u274c Error: '+err.message;}
+}
+
+async function loadServiceHistory() {
+  const tbody=document.getElementById('serviceHistoryBody');
+  try {
+    const res=await gasPost({action:'getServiceHistory'});
+    if(res.status!=='ok'||!res.data?.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>No service records yet.</p></div></td></tr>';return;}
+    tbody.innerHTML=res.data.map(r=>`<tr><td>${fmtDate(r.date)}</td><td><strong>${r.asset}</strong></td><td>${fmt(r.reading)}</td><td>${r.notes||'—'}</td><td>${r.updatedBy||'—'}</td></tr>`).join('');
+  } catch(e){}
+}
+
+// Init
+setAssetType('vehicle');
+// Auto-load dashboard seed data on page open
+renderDashboardData({...SEED_DATA, total:10, ok:8, soon:0, due:2, checksToday:0, unsafeToday:0});
+</script>
+</body>
+</html>
